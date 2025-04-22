@@ -2,7 +2,7 @@
 
 A modern, responsive AI chatbot web application built with Flask and Together API. Experience seamless conversations with an intelligent AI assistant.
 
-<img src="https://raw.githubusercontent.com/phoenixdev100/ai-chatbot/main/static/src/images/dashboard-preview.png" alt="AI Dashboard Preview" width="800"/>
+<img src="https://raw.githubusercontent.com/phoenixdev100/ai-chatbot/main/static/images/dashboard-preview.png" alt="AI Dashboard Preview" width="800"/>
 
 ## ✨ Features
 
