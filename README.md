@@ -1,10 +1,12 @@
-# 🤖 AI Chatbot
+# <div align="center">🤖 AI Chatbot</div>
 
+<div align="center">
 A modern, responsive AI chatbot web application built with Flask and Together API. Experience seamless conversations with an intelligent AI assistant.
+</div>
 
 <img src="https://raw.githubusercontent.com/phoenixdev100/ai-chatbot/main/static/images/dashboard-preview.png" alt="AI Dashboard Preview" width="800"/>
 
-## ✨ Features
+## <div align="center">✨ Features</div>
 
 - 💬 Real-time chat interface with typing indicators
 - 🎨 Modern and responsive design
@@ -13,12 +15,12 @@ A modern, responsive AI chatbot web application built with Flask and Together AP
 - ⚡ Support for both click and Enter key message sending
 - 🌙 Dark mode support
 
-## 🚀 Quick Start
+## <div align="center">🚀 Quick Start</div>
 
 ### Prerequisites
 
 - Python 3.8 or higher
-- OpenAI API key
+- TogetherAI API key
 
 ### Installation
 
@@ -63,7 +65,7 @@ A modern, responsive AI chatbot web application built with Flask and Together AP
 2. **Open your browser**
    Navigate to [http://localhost:5000](http://localhost:5000)
 
-## 📁 Project Structure
+## <div align="center">📁 Project Structure</div>
 
 ```
 ai-chatbot/
@@ -79,7 +81,7 @@ ai-chatbot/
     └── index.html     # Main HTML template
 ```
 
-## 🤝 Contributing
+## <div align="center">🤝 Contributing</div>
 
 We welcome contributions! Here's how you can help:
 
@@ -89,11 +91,11 @@ We welcome contributions! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## <div align="center">📝 License</div>
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## <div align="center">🙏 Acknowledgments</div>
 
 - TogetherAI for their amazing GPT API
 - Flask for the web framework
