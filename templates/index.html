@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phoenix AI - Your Coding Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <h1>Phoenix AI</h1>
+                </div>
+                <button id="new-chat" class="primary-button">
+                    <i class="fas fa-plus"></i>
+                    <span>New Chat</span>
+                </button>
+            </div>
+
+            <div class="conversation-list">
+                <!-- Conversations will be added here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="clear-history" class="icon-button">
+                    <i class="fas fa-trash"></i>
+                    <span>Clear History</span>
+                </button>
+                <button id="theme-toggle" class="icon-button">
+                    <i class="fas fa-moon"></i>
+                    <span>Toggle Theme</span>
+                </button>
+                <button id="settings-button" class="icon-button">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="chat-header">
+                <div class="chat-info">
+                    <h2>Chat with Phoenix AI</h2>
+                    <span class="status">AI Assistant Ready</span>
+                </div>
+                <div class="header-actions">
+                    <button id="export-chat" class="icon-button" title="Export Chat">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Welcome Message -->
+                    <div class="message ai-message">
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div class="avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <span class="sender">Phoenix AI</span>
+                            </div>
+                            <div class="message-text">
+                                <h3>👋 Welcome to Phoenix AI!</h3>
+                                <p>I'm your AI coding assistant. I can help you with:</p>
+                                <ul>
+                                    <li>Writing and debugging code</li>
+                                    <li>Explaining programming concepts</li>
+                                    <li>Providing code examples</li>
+                                    <li>Suggesting best practices</li>
+                                </ul>
+                                <p>Try the quick actions below or type your question!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="action-chip" data-action="debug">
+                        <i class="fas fa-bug"></i>
+                        <span>Debug Code</span>
+                    </button>
+                    <button class="action-chip" data-action="explain">
+                        <i class="fas fa-book"></i>
+                        <span>Explain Concept</span>
+                    </button>
+                    <button class="action-chip" data-action="write">
+                        <i class="fas fa-code"></i>
+                        <span>Write Function</span>
+                    </button>
+                    <button class="action-chip" data-action="optimize">
+                        <i class="fas fa-bolt"></i>
+                        <span>Optimize Code</span>
+                    </button>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-actions">
+                        <button id="upload-button" class="icon-button" title="Upload File">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button id="code-button" class="icon-button" title="Insert Code">
+                            <i class="fas fa-code"></i>
+                        </button>
+                    </div>
+                    <div class="input-wrapper">
+                        <textarea id="user-input" placeholder="Type your message here..." rows="1"></textarea>
+                        <button id="send-button" class="send-button" title="Send Message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="file-preview" class="file-preview"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="loading-indicator hidden">
+        <div class="spinner"></div>
+        <span>Processing...</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
