@@ -1,12 +1,18 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, session
 import os
 from dotenv import load_dotenv
-import requests
+from google import genai
+from google.genai import types
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from datetime import timedelta
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Secret key for sessions
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # Auto-reload templates
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 load_dotenv()
@@ -19,13 +25,12 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-API_URL = "https://api.together.xyz/v1/chat/completions"
-API_KEY = os.getenv("TOGETHER_API_KEY")
+# Configure Gemini API
+API_KEY = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
-HEADERS = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json"
-}
+# Store conversation history (in production, use a database)
+conversations = {}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -61,16 +66,24 @@ def is_code_request(message):
 
 def get_system_message(is_code):
     if is_code:
-        return """You are a helpful coding assistant. When providing code examples:
-        1. Include clear comments explaining the code
-        2. Use proper formatting with markdown code blocks (```)
-        3. Specify the programming language
-        4. Add brief explanations before and after the code
-        5. Follow best practices and conventions"""
+        return """You are Phoenix AI, a friendly and helpful coding assistant. Be warm and conversational while helping with code:
+        - Provide exactly what the user asks for - stay focused on their needs
+        - Use a friendly, approachable tone (you can use emojis occasionally 😊)
+        - When giving code, use markdown code blocks with the language specified
+        - Keep explanations clear but concise - explain the "why" when helpful
+        - If something is unclear, ask friendly follow-up questions
+        - Celebrate their progress and encourage learning
+        - Be patient and supportive, especially with beginners
+        Remember: You're not just a code generator, you're a helpful friend who happens to be great at coding!"""
     else:
-        return """You are a helpful AI assistant. Provide clear and concise responses.
-        Keep your answers natural and conversational. Only use code blocks when specifically
-        discussing code or technical concepts that require them."""
+        return """You are Phoenix AI, a warm and friendly AI assistant. Be conversational and helpful:
+        - Answer what the user asks - be direct but friendly
+        - Use a natural, conversational tone (emojis are welcome when appropriate 😊)
+        - Keep responses focused but don't be robotic - add personality!
+        - If you're not sure what they need, ask clarifying questions
+        - Be encouraging and positive
+        - Remember context from the conversation
+        Think of yourself as a helpful friend who's always ready to assist!"""
 
 @app.route('/')
 def home():
@@ -80,11 +93,32 @@ def home():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/api/clear-history', methods=['POST'])
+def clear_history():
+    try:
+        if 'session_id' in session:
+            session_id = session['session_id']
+            if session_id in conversations:
+                conversations[session_id] = []
+        return jsonify({"success": True, "message": "Conversation history cleared"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
-        if not API_KEY:
-            return jsonify({"error": "API key not configured. Please set TOGETHER_API_KEY in .env file"}), 500
+        if not client:
+            return jsonify({"error": "API key not configured. Please set GEMINI_API_KEY in .env file"}), 500
+
+        # Get or create session ID
+        if 'session_id' not in session:
+            session['session_id'] = os.urandom(16).hex()
+        
+        session_id = session['session_id']
+        
+        # Initialize conversation history for this session
+        if session_id not in conversations:
+            conversations[session_id] = []
 
         message = request.form.get('message', '').strip()
         files = request.files.getlist('files[]')
@@ -107,49 +141,97 @@ def chat():
         is_code = is_code_request(full_message)
         system_message = get_system_message(is_code)
 
-        # Prepare API request
-        payload = {
-            "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": full_message}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 2000,
-        }
+        # Build conversation history with context
+        conversation_history = system_message + "\n\n"
+        
+        # Add previous messages for context (keep last 10 exchanges)
+        history_limit = 10
+        recent_history = conversations[session_id][-history_limit:] if len(conversations[session_id]) > history_limit else conversations[session_id]
+        
+        for msg in recent_history:
+            conversation_history += f"{msg['role']}: {msg['content']}\n\n"
+        
+        # Add current user message
+        conversation_history += f"User: {full_message}"
 
-        # Make API request
+        # Make API request with full conversation context
         try:
-            response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=30)
-            response.raise_for_status()
+            response = client.models.generate_content(
+                model='models/gemini-2.5-flash',
+                contents=conversation_history,
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=2000,
+                )
+            )
             
-            response_data = response.json()
-            if not response_data.get("choices"):
+            if not response or not response.text:
                 return jsonify({"error": "No response from AI model"}), 500
                 
-            ai_message = response_data["choices"][0]["message"]["content"].strip()
+            ai_message = response.text.strip()
+            
+            # Save to conversation history
+            conversations[session_id].append({"role": "User", "content": full_message})
+            conversations[session_id].append({"role": "Phoenix AI", "content": ai_message})
+            
+            # Limit conversation history size (keep last 50 messages)
+            if len(conversations[session_id]) > 50:
+                conversations[session_id] = conversations[session_id][-50:]
+            
             return jsonify({"response": ai_message})
             
-        except requests.exceptions.Timeout:
-            return jsonify({"error": "Request timed out. Please try again."}), 504
-        except requests.exceptions.RequestException as e:
-            return jsonify({"error": f"API Error: {str(e)}"}), 500
+        except Exception as e:
+            error_message = str(e)
+            print(f"API Error: {error_message}")  # Debug logging
+            import traceback
+            traceback.print_exc()  # Print full traceback
+            if "quota" in error_message.lower():
+                return jsonify({"error": "API quota exceeded. Please check your Gemini API usage."}), 429
+            elif "api key" in error_message.lower():
+                return jsonify({"error": "Invalid API key. Please check your GEMINI_API_KEY."}), 401
+            else:
+                return jsonify({"error": f"API Error: {error_message}"}), 500
 
     except Exception as e:
+        print(f"Server Error: {str(e)}")  # Debug logging
+        import traceback
+        traceback.print_exc()  # Print full traceback
         return jsonify({"error": f"Server Error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     try:
         print("\n=== AI Chatbot Server ===")
         print("API Configuration:")
-        print(f"API URL: {API_URL}")
-        print(f"API Key (length): {len(API_KEY)} characters")
+        print(f"Using: Google Gemini API")
+        print(f"API Key configured: {'Yes' if client else 'No'}")
+        if API_KEY:
+            print(f"API Key (length): {len(API_KEY)} characters")
         print("----------------------------------------")
         print("Server Configuration:")
         print("- Debug Mode: Enabled")
+        print("- Auto-Reload: Enabled (watching .py, .html, .css, .js files)")
         print("- Upload Folder:", UPLOAD_FOLDER)
         print("- Max Content Length:", MAX_CONTENT_LENGTH, "bytes")
         print("----------------------------------------")
-        socketio.run(app, debug=True)
+        
+        # Configure extra files to watch for auto-reload
+        import glob
+        extra_dirs = ['static', 'templates']
+        extra_files = []
+        
+        for extra_dir in extra_dirs:
+            for dirname, dirs, files in os.walk(extra_dir):
+                for filename in files:
+                    filename = os.path.join(dirname, filename)
+                    if os.path.isfile(filename):
+                        extra_files.append(filename)
+        
+        # Run with auto-reload watching all files
+        socketio.run(
+            app, 
+            debug=True,
+            use_reloader=True,
+            extra_files=extra_files
+        )
     except Exception as e:
         print(f"Failed to start server: {str(e)}")
