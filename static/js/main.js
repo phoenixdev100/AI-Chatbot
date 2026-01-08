@@ -159,6 +159,67 @@ document.addEventListener('DOMContentLoaded', () => {
         input.click();
     });
 
+    // Custom Modal Functions
+    function showModal(title, message, inputValue = '', isConfirm = false) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalInput = document.getElementById('modal-input');
+            const modalCancel = document.getElementById('modal-cancel');
+            const modalConfirm = document.getElementById('modal-confirm');
+
+            modalTitle.textContent = title;
+
+            if (isConfirm) {
+                // Confirmation dialog (no input)
+                modalBody.innerHTML = `<p style="color: #b3b3b3; margin: 0;">${message}</p>`;
+            } else {
+                // Input dialog
+                modalBody.innerHTML = `<input type="text" id="modal-input" class="modal-input" placeholder="${message}" value="${inputValue}">`;
+            }
+
+            modal.classList.add('show');
+
+            // Focus input if present
+            const input = document.getElementById('modal-input');
+            if (input) {
+                setTimeout(() => input.focus(), 100);
+            }
+
+            const handleConfirm = () => {
+                const value = input ? input.value : true;
+                cleanup();
+                resolve(value);
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            const cleanup = () => {
+                modal.classList.remove('show');
+                modalConfirm.removeEventListener('click', handleConfirm);
+                modalCancel.removeEventListener('click', handleCancel);
+            };
+
+            modalConfirm.addEventListener('click', handleConfirm);
+            modalCancel.addEventListener('click', handleCancel);
+
+            // Close on overlay click
+            modal.querySelector('.modal-overlay').addEventListener('click', handleCancel);
+
+            // Enter key to confirm
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') handleConfirm();
+                    if (e.key === 'Escape') handleCancel();
+                });
+            }
+        });
+    }
+
     // Helper functions
     function generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -645,27 +706,98 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="conversation-preview">${preview}${firstMessage && firstMessage.content.length > 40 ? '...' : ''}</div>
                 </div>
                 <div class="conversation-time">${time}</div>
-                <button class="conversation-delete" title="Delete conversation">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="conversation-menu">
+                    <button class="conversation-menu-btn" title="More options">
+                        <i class="fas fa-ellipsis"></i>
+                    </button>
+                    <div class="conversation-dropdown">
+                        <button class="dropdown-item rename-chat">
+                            <i class="fas fa-pen"></i>
+                            <span>Rename</span>
+                        </button>
+                        <button class="dropdown-item pin-chat">
+                            <i class="fas fa-thumbtack"></i>
+                            <span>Pin chat</span>
+                        </button>
+                        <button class="dropdown-item delete-chat">
+                            <i class="fas fa-trash"></i>
+                            <span>Delete</span>
+                        </button>
+                    </div>
+                </div>
             `;
 
             // Add click handler for loading conversation
             convItem.addEventListener('click', (e) => {
-                // Don't load if clicking delete button
-                if (!e.target.closest('.conversation-delete')) {
+                // Don't load if clicking menu button or dropdown
+                if (!e.target.closest('.conversation-menu')) {
                     loadConversation(conv.id);
                 }
             });
 
-            // Add delete handler
-            const deleteBtn = convItem.querySelector('.conversation-delete');
+            // Menu button handler
+            const menuBtn = convItem.querySelector('.conversation-menu-btn');
+            const dropdown = convItem.querySelector('.conversation-dropdown');
+
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close all other dropdowns
+                document.querySelectorAll('.conversation-dropdown').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('show');
+                });
+                dropdown.classList.toggle('show');
+            });
+
+            // Rename handler
+            const renameBtn = convItem.querySelector('.rename-chat');
+            renameBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('show');
+                const newTitle = await showModal('Rename Chat', 'Enter new chat name', conv.title || 'New Chat');
+                if (newTitle && newTitle.trim()) {
+                    conv.title = newTitle.trim();
+                    // Update the conversation in the array
+                    const index = conversations.findIndex(c => c.id === conv.id);
+                    if (index !== -1) {
+                        conversations[index] = conv;
+                    }
+                    // If this is the current conversation, update it too
+                    if (currentConversation.id === conv.id) {
+                        currentConversation.title = newTitle.trim();
+                    }
+                    localStorage.setItem('conversations', JSON.stringify(conversations));
+                    renderConversationList();
+                }
+            });
+
+            // Pin handler
+            const pinBtn = convItem.querySelector('.pin-chat');
+            pinBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('show');
+                conv.pinned = !conv.pinned;
+                saveCurrentConversation();
+                renderConversationList();
+            });
+
+            // Delete handler
+            const deleteBtn = convItem.querySelector('.delete-chat');
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                dropdown.classList.remove('show');
                 deleteConversation(conv.id);
             });
 
             conversationList.appendChild(convItem);
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.conversation-menu')) {
+                document.querySelectorAll('.conversation-dropdown').forEach(d => {
+                    d.classList.remove('show');
+                });
+            }
         });
     }
 
@@ -692,9 +824,10 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.focus();
     }
 
-    function deleteConversation(convId) {
+    async function deleteConversation(convId) {
         // Confirm deletion
-        if (!confirm('Delete this conversation? This cannot be undone.')) {
+        const confirmed = await showModal('Delete Chat', 'Are you sure you want to delete this conversation? This cannot be undone.', '', true);
+        if (!confirmed) {
             return;
         }
 
