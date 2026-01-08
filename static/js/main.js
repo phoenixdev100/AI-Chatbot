@@ -4,23 +4,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
     const newChatButton = document.getElementById('new-chat');
-    const clearHistoryButton = document.getElementById('clear-history');
     const themeToggleButton = document.getElementById('theme-toggle');
-    const settingsButton = document.getElementById('settings-button');
-    const exportChatButton = document.getElementById('export-chat');
     const uploadButton = document.getElementById('upload-button');
     const codeButton = document.getElementById('code-button');
     const filePreview = document.getElementById('file-preview');
-    const quickActions = document.querySelectorAll('.action-chip');
     const conversationList = document.querySelector('.conversation-list');
+
+    // Sidebar Elements
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarMaximize = document.getElementById('sidebar-maximize');
 
     let isProcessing = false;
     let currentFiles = [];
+
+    // Initialize sidebar state
+    const sidebarState = localStorage.getItem('sidebarState') || 'expanded';
+    if (sidebarState === 'collapsed') {
+        sidebar.classList.add('collapsed');
+    }
 
     // Initialize theme
     const theme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
     updateThemeIcon();
+
+    // Event Listeners for Sidebar
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            localStorage.setItem('sidebarState', 'collapsed');
+            // Show maximize button, hide minimize button
+            sidebarToggle.style.display = 'none';
+            if (sidebarMaximize) {
+                sidebarMaximize.style.display = 'flex';
+            }
+        });
+    }
+
+    // Maximize button to expand sidebar
+    if (sidebarMaximize) {
+        sidebarMaximize.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            localStorage.setItem('sidebarState', 'expanded');
+            // Show minimize button, hide maximize button
+            sidebarMaximize.style.display = 'none';
+            if (sidebarToggle) {
+                sidebarToggle.style.display = 'flex';
+            }
+        });
+    }
+
+    // Allow expanding sidebar by clicking logo in collapsed mode
+    const logoElement = document.querySelector('.logo');
+    if (logoElement) {
+        logoElement.addEventListener('click', () => {
+            if (sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                localStorage.setItem('sidebarState', 'expanded');
+                // Show minimize button, hide maximize button
+                if (sidebarMaximize) {
+                    sidebarMaximize.style.display = 'none';
+                }
+                if (sidebarToggle) {
+                    sidebarToggle.style.display = 'flex';
+                }
+            }
+        });
+    }
 
     // Initialize chat history
     let conversations = JSON.parse(localStorage.getItem('conversations') || '[]');
@@ -57,33 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Quick action buttons
-    quickActions.forEach(button => {
-        button.addEventListener('click', () => {
-            const action = button.dataset.action;
-            let template = '';
 
-            switch (action) {
-                case 'debug':
-                    template = 'Help me debug this code:\n```\n\n```';
-                    break;
-                case 'explain':
-                    template = 'Explain this concept:\n';
-                    break;
-                case 'write':
-                    template = 'Help me write a function that:\n';
-                    break;
-                case 'optimize':
-                    template = 'Help me optimize this code:\n```\n\n```';
-                    break;
-            }
-
-            userInput.value = template;
-            userInput.focus();
-            adjustTextareaHeight();
-            sendButton.disabled = false;
-        });
-    });
 
     // Theme toggle
     themeToggleButton.addEventListener('click', () => {
@@ -96,32 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // New chat button
     newChatButton.addEventListener('click', startNewChat);
-
-    // Clear history button
-    clearHistoryButton.addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
-            conversations = [];
-            localStorage.removeItem('conversations');
-            startNewChat();
-        }
-    });
-
-    // Export chat button
-    exportChatButton.addEventListener('click', () => {
-        const chatContent = currentConversation.messages.map(msg =>
-            `${msg.role.toUpperCase()}: ${msg.content}`
-        ).join('\n\n');
-
-        const blob = new Blob([chatContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    });
 
     // File upload
     uploadButton.addEventListener('click', () => {
@@ -204,62 +203,46 @@ document.addEventListener('DOMContentLoaded', () => {
     function addMessage(content, isUser = false, isError = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+        if (isError) messageDiv.classList.add('error-message');
 
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-
-        const messageHeader = document.createElement('div');
-        messageHeader.className = 'message-header';
-
+        // Create Avatar (Direct child of messageDiv)
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
         const icon = document.createElement('i');
         icon.className = isUser ? 'fas fa-user' : 'fas fa-robot';
         avatar.appendChild(icon);
+        messageDiv.appendChild(avatar);
 
-        const sender = document.createElement('span');
-        sender.className = 'sender';
-        sender.textContent = isUser ? 'You' : 'Phoenix AI';
-
-        messageHeader.appendChild(avatar);
-        messageHeader.appendChild(sender);
+        // Content Container
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
 
         const messageText = document.createElement('div');
         messageText.className = 'message-text';
 
         // Process markdown-style formatting
         const processMarkdown = (text) => {
-            // Handle bold text
             text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Handle italic text
             text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-            // Handle inline code
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            // Handle links
             text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-            // Handle lists
             text = text.replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>');
             text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-            // Handle line breaks
             text = text.replace(/\n/g, '<br>');
             return text;
         };
 
         if (content.includes('```')) {
-            // Split content by code blocks
             const parts = content.split(/(```[\s\S]*?```)/g);
             parts.forEach(part => {
                 if (part.startsWith('```') && part.endsWith('```')) {
-                    // Extract language and code
                     const lines = part.slice(3, -3).split('\n');
                     const language = lines[0].trim();
                     const code = lines.slice(1).join('\n');
 
-                    // Create code block container
                     const codeContainer = document.createElement('div');
                     codeContainer.className = 'code-block-container';
 
-                    // Create code block header with copy button
                     const codeHeader = document.createElement('div');
                     codeHeader.className = 'code-block-header';
 
@@ -284,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     codeHeader.appendChild(languageLabel);
                     codeHeader.appendChild(copyButton);
 
-                    // Create code block elements
                     const pre = document.createElement('pre');
                     const codeEl = document.createElement('code');
                     if (language) {
@@ -297,12 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     codeContainer.appendChild(pre);
                     messageText.appendChild(codeContainer);
 
-                    // Apply syntax highlighting
                     if (window.hljs) {
                         hljs.highlightElement(codeEl);
                     }
                 } else if (part.trim()) {
-                    // Process regular text with markdown
                     const textDiv = document.createElement('div');
                     textDiv.className = 'text-content';
                     textDiv.innerHTML = processMarkdown(part);
@@ -310,11 +290,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         } else {
-            // Process regular text with markdown
             messageText.innerHTML = processMarkdown(content);
         }
 
-        messageContent.appendChild(messageHeader);
         messageContent.appendChild(messageText);
         messageDiv.appendChild(messageContent);
 
@@ -328,29 +306,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
 
-        const messageContent = document.createElement('div');
-        messageContent.className = 'message-content';
-
-        const messageHeader = document.createElement('div');
-        messageHeader.className = 'message-header';
-
+        // Create Avatar
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
         const icon = document.createElement('i');
         icon.className = isUser ? 'fas fa-user' : 'fas fa-robot';
         avatar.appendChild(icon);
+        messageDiv.appendChild(avatar);
 
-        const sender = document.createElement('span');
-        sender.className = 'sender';
-        sender.textContent = isUser ? 'You' : 'Phoenix AI';
-
-        messageHeader.appendChild(avatar);
-        messageHeader.appendChild(sender);
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
 
         const messageText = document.createElement('div');
         messageText.className = 'message-text';
 
-        messageContent.appendChild(messageHeader);
         messageContent.appendChild(messageText);
         messageDiv.appendChild(messageContent);
 
@@ -465,8 +434,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addTypingIndicator() {
         const typingDiv = document.createElement('div');
-        typingDiv.className = 'message ai-message typing-indicator';
-        typingDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+        typingDiv.className = 'message ai-message';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+        typingDiv.appendChild(avatar);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+        typingDiv.appendChild(contentDiv);
+
         chatMessages.appendChild(typingDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         return typingDiv;
