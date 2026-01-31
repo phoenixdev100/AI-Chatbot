@@ -5,8 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendButton = document.getElementById('send-button');
     const newChatButton = document.getElementById('new-chat');
     const themeToggleButton = document.getElementById('theme-toggle');
-    const uploadButton = document.getElementById('upload-button');
-    const codeButton = document.getElementById('code-button');
     const filePreview = document.getElementById('file-preview');
     const conversationList = document.querySelector('.conversation-list');
 
@@ -122,42 +120,92 @@ document.addEventListener('DOMContentLoaded', () => {
     // New chat button
     newChatButton.addEventListener('click', startNewChat);
 
-    // File upload
-    uploadButton.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = true;
-        input.accept = '.txt,.js,.py,.html,.css,.json,.pdf,.jpg,.jpeg,.png,.gif';
+    // Add button dropdown functionality
+    const addButton = document.getElementById('add-button');
+    const addDropdown = document.getElementById('add-dropdown');
 
-        input.onchange = (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                currentFiles = files;
+    if (addButton && addDropdown) {
+        // Toggle dropdown
+        addButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addDropdown.classList.toggle('show');
+            addButton.classList.toggle('active');
+        });
 
-                // Show file preview
-                filePreview.innerHTML = files.map(file => `
-                    <div class="file-item">
-                        <i class="fas fa-file"></i>
-                        <span>${file.name}</span>
-                        <button class="remove-file" onclick="this.parentElement.remove(); currentFiles = currentFiles.filter(f => f.name !== '${file.name}');">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `).join('');
+        // Handle dropdown item clicks
+        const dropdownItems = addDropdown.querySelectorAll('.add-dropdown-item');
+        dropdownItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const uploadType = item.getAttribute('data-upload-type');
 
-                // Enable send button if there's a message or files
-                sendButton.disabled = !(userInput.value.trim() || currentFiles.length > 0);
+                // Create file input based on type
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
 
-                // Add a message about the uploaded files
-                if (!userInput.value.trim()) {
-                    userInput.value = `I have uploaded ${files.length} file${files.length > 1 ? 's' : ''}. Please analyze ${files.length > 1 ? 'them' : 'it'}.`;
-                    adjustTextareaHeight();
+                // Set accept attribute based on upload type
+                switch (uploadType) {
+                    case 'image':
+                        input.accept = '.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.ico';
+                        break;
+                    case 'document':
+                        input.accept = '.pdf,.doc,.docx,.txt,.rtf,.odt';
+                        break;
+                    case 'files':
+                        // Support all common file types and documents
+                        input.accept = '.txt,.js,.py,.html,.css,.json,.xml,.md,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.csv,.zip,.rar,.7z,.tar,.gz';
+                        break;
+                    default:
+                        input.accept = '*'; // Accept all files
+                        break;
                 }
-            }
-        };
 
-        input.click();
-    });
+                input.onchange = (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) {
+                        currentFiles = files;
+
+                        // Show file preview
+                        filePreview.innerHTML = files.map(file => `
+                            <div class="file-item">
+                                <i class="fas fa-file"></i>
+                                <span>${file.name}</span>
+                                <button class="remove-file" onclick="this.parentElement.remove(); currentFiles = currentFiles.filter(f => f.name !== '${file.name}');">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `).join('');
+
+                        // Enable send button if there's a message or files
+                        sendButton.disabled = !(userInput.value.trim() || currentFiles.length > 0);
+
+                        // Add a message about the uploaded files
+                        if (!userInput.value.trim()) {
+                            const typeLabel = uploadType === 'image' ? 'image' : 'file';
+                            userInput.value = `I have uploaded ${files.length} ${typeLabel}${files.length > 1 ? 's' : ''}. Please analyze ${files.length > 1 ? 'them' : 'it'}.`;
+                            adjustTextareaHeight();
+                        }
+                    }
+                };
+
+                input.click();
+
+                // Close dropdown
+                addDropdown.classList.remove('show');
+                addButton.classList.remove('active');
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!addButton.contains(e.target) && !addDropdown.contains(e.target)) {
+                addDropdown.classList.remove('show');
+                addButton.classList.remove('active');
+            }
+        });
+    }
+
 
     // Custom Modal Functions
     function showModal(title, message, inputValue = '', isConfirm = false) {
