@@ -59,6 +59,10 @@ A modern, responsive AI chatbot web application built with Flask and Google Gemi
 
 1. **Start the Flask server**
    ```bash
+   py app.py
+   ```
+   or
+   ```bash
    python app.py
    ```
 

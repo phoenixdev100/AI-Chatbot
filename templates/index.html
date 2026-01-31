@@ -85,20 +85,29 @@
 
                     <div class="input-container-wrapper">
                         <div class="input-wrapper">
-                            <textarea id="user-input" placeholder="Type your message here..." rows="1"></textarea>
+                            <div class="add-button-wrapper">
+                                <button id="add-button" class="add-button" title="Add Attachment">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <div id="add-dropdown" class="add-dropdown">
+                                    <button class="add-dropdown-item" data-upload-type="image">
+                                        <i class="fas fa-image"></i>
+                                        <span>Upload Image</span>
+                                    </button>
+                                    <button class="add-dropdown-item" data-upload-type="files">
+                                        <i class="fas fa-folder-open"></i>
+                                        <span>Upload Files & Documents</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="user-input" placeholder="Ask anything..." rows="1"></textarea>
                             <button id="send-button" class="send-button" title="Send Message">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
-
-                        <div class="input-actions-left">
-                            <button id="upload-button" class="icon-button" title="Upload File">
-                                <i class="fas fa-paperclip"></i>
-                            </button>
-                            <button id="code-button" class="icon-button" title="Insert Code Block">
-                                <i class="fas fa-code"></i>
-                            </button>
-                        </div>
+                    </div>
+                    <div class="input-disclaimer">
+                        Phoenix AI can make mistakes. Check important info.
                     </div>
                 </div>
             </div>
